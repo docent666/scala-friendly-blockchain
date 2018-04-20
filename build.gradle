@@ -1,0 +1,29 @@
+group 'com.docent666'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'scala'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://dl.bintray.com/micronautics/scala/"
+    }
+    maven {
+        url "https://dl.bintray.com/ethereum/maven/"
+    }
+}
+
+dependencies {
+    compile group: "com.micronautics", name: "web3j-scala_2.12", version: "0.2.2"
+    compile group: "net.corda", name: "corda-rpc", version: "3.1-corda"
+}
+
+compileScala {
+    options.compilerArgs += ["-Ybreak-cycles"]
+}
+
+configurations.all {
+    exclude group: 'org.slf4j', module: 'slf4j-nop'
+}
