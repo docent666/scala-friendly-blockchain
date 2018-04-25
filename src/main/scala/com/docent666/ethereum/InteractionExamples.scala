@@ -5,7 +5,7 @@ import java.io.File
 import com.docent666.ethereum.Helpers._
 import com.micronautics.web3j.Web3JScala.{solc, wrapAbi}
 import com.micronautics.web3j.{Address, Web3JScala}
-import org.web3j.crypto.{RawTransaction, TransactionEncoder, WalletUtils}
+import org.web3j.crypto.{Credentials, RawTransaction, TransactionEncoder, WalletUtils}
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.core.{DefaultBlockParameter, DefaultBlockParameterName, RemoteCall}
@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 //will create a wallet. rename it then to wallet1 or wallet2 to play nicely with subsequent steps
 object GenWallet extends App {
-  val wallet2 = WalletUtils.generateNewWalletFile("pass",
+  WalletUtils.generateNewWalletFile("pass",
     new File("src/main/resources/wallets"), false)
 }
 
@@ -57,33 +57,36 @@ object InteractWithContract extends App {
 //  val contract = Hello.load(contractAddress, web3j, wallet1, web3jScala.sync.gasPrice.bigInteger, BigInt(100).bigInteger)
 //  val contractAddress = "0x9a4e2643b40baf6ca1755fced699b6931dd66230"
   val contract: Hello = contractPrep.send
-  val contractAddress = contract.getContractAddress
+  val contractStringAddress = contract.getContractAddress
+  val contractAddress = Address(contract.getContractAddress)
 
   //  observe(2)(web3j.blockObservable(false)) { ethBlock =>
 //    println(s"block mined: $ethBlock")
 //  }
 
-  println(s"wallet balance before: ${balanceOf(Address(wallet1.getAddress)).asWei}")
-  val ethGetTransactionCount = web3j.ethGetTransactionCount(wallet1.getAddress, DefaultBlockParameterName.LATEST).sendAsync.get
+  println(s"wallet balance before funding contract: ${balanceOf(Address(wallet1.getAddress)).asWei}")
+  val ethGetTransactionCount = web3j.ethGetTransactionCount(wallet1.getAddress, DefaultBlockParameterName.LATEST).send
   val nonce = ethGetTransactionCount.getTransactionCount
   //send funds to contract
   //needs to use raw function as need to provide values to gas price and limit
-  val rawTransaction = RawTransaction.createEtherTransaction(nonce, ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT, contractAddress, BigInt(1337).bigInteger)
+  val rawTransaction = RawTransaction.createEtherTransaction(nonce, ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT, contractStringAddress, BigInt(1337).bigInteger)
   val signedMessage = TransactionEncoder.signMessage(rawTransaction, wallet1)
   val hexValue = signedMessage.map("%02X" format _).mkString
   //  val hexValue: String = javax.xml.bind.DatatypeConverter.printHexBinary(signedMessage)
   val ethSendTransaction = web3j.ethSendRawTransaction(hexValue).send()
-  println(s"wallet balance after: ${balanceOf(Address(wallet1.getAddress)).asWei}")
-  println(s"balance of contract: ${balanceOf(Address(contractAddress)).asWei}")
-  private val receipt = contract.helloPayMe(BigInt(100).bigInteger)
+  println(s"wallet balance after funding contract: ${balanceOf(Address(wallet1.getAddress)).asWei}")
+  println(s"balance of contract: ${balanceOf(contractAddress).asWei}")
+
+
+  private val receipt = contract.helloPayMe(BigInt(1).bigInteger)
   receipt.send()
   println(s"wallet balance after interacting with contract: ${balanceOf(Address(wallet1.getAddress)).asWei}")
-  println(s"balance of contract: ${balanceOf(Address(contractAddress)).asWei}")
+  println(s"balance of contract: ${balanceOf(contractAddress).asWei}")
 }
 
 object Helpers {
-  val wallet1 = WalletUtils.loadCredentials("pass", new File("src/main/resources/wallets/wallet1.json"))
-  val wallet2 = WalletUtils.loadCredentials("pass", new File("src/main/resources/wallets/wallet2.json"))
+  val wallet1 : Credentials = WalletUtils.loadCredentials("pass", new File("src/main/resources/wallets/wallet1.json"))
+  val wallet2 : Credentials = WalletUtils.loadCredentials("pass", new File("src/main/resources/wallets/wallet2.json"))
   val web3j: Web3j = Web3JScala.fromHttp() // defaults to http://localhost:8545/
   val web3jScala: Web3JScala = new Web3JScala(web3j)
 
